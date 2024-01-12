@@ -1,13 +1,17 @@
 [tool.poetry]
-name = "electricmeterbot"
+name = "уelectricmeterbot"
 version = "0.1.0"
 description = ""
-authors = ["amantur02 <amanamanovica@gmail.com>"]
+authors = ["amantur02 <amantur.ubaid@gmail.com>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.11"
 sqlalchemy = "^2.0.25"
+psycopg2-binary = "^2.9.9"
+alembic = "^1.13.1"
+uvicorn = "^0.25.0"
+gunicorn = "^21.2.0"
 
 
 [build-system]
