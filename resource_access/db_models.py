@@ -2,15 +2,13 @@ from sqlalchemy import Column, Integer, String, Date, Boolean, Float, ForeignKey
 from .db_base_class import Base
 
 
-class Residents(Base):
+class ResidentDB(Base):
     __tablename__ = 'residents'
 
     id = Column(Integer, primary_key=True)
     home_number = Column(String)
     name = Column(String)
     phone_number = Column(String)
-    monthly_readings = Column(Date)
-    readings = Column(Integer)
 
 
 class ElectricityReading(Base):
@@ -26,5 +24,4 @@ class ElectricityReading(Base):
     current_reading = Column(Integer, nullable=False)
     payment_status = Column(Boolean, default=False)
     amount = Column(Float)
-    consumed_kwh = Column(Float)
     created_date = Column(Date)

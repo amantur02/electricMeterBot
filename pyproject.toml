@@ -13,6 +13,7 @@ alembic = "^1.13.1"
 uvicorn = "^0.25.0"
 gunicorn = "^21.2.0"
 python-telegram-bot = "^20.7"
+pydantic = "^2.5.3"
 
 
 [build-system]
