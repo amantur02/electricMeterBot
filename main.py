@@ -1,88 +1,59 @@
+import asyncio
 import logging
+import sys
 
-from telegram import Update, ForceReply
-from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
+from aiogram import Bot, Dispatcher, types, Router
+from aiogram.enums import ParseMode
+from aiogram.filters import CommandStart
+from aiogram.fsm.context import FSMContext
+from aiogram.types import Message
+from sqlalchemy.orm import Session
+
 from core.config import settings
-from pydantic import BaseModel
+from depends import get_session
+from forms import Resident
+from repositories.resident_repos import ResidentRepository
+from resource_access.db_session import session
 
-from schemas import Resident
-
-# Enable logging
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
-)
-logging.getLogger("httpx").setLevel(logging.WARNING)
-logger = logging.getLogger(__name__)
+form_router = Router()
 
 
-user_data = {}
-
-
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Send a message when the command /start is issued."""
-    user = update.effective_user
-    await update.message.reply_html(
-        rf"Hi {user.mention_html()}! To add a user, enter /add_user.",
-        reply_markup=ForceReply(selective=True),
+@form_router.message(CommandStart())
+async def command_start(message: Message, state: FSMContext) -> None:
+    await state.set_state(Resident.name)
+    await message.answer(
+        "Hi there! What's resident name?",
     )
 
 
-async def add_resident(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Start the process of adding a new resident."""
-    chat_id = update.message.chat_id
-    user_data[chat_id] = Resident()
-
-    await update.message.reply_text("Enter the house number:")
-    await get_house_number(update, context)
+@form_router.message(Resident.name)
+async def process_name(message: Message, state: FSMContext) -> None:
+    await state.update_data(name=message.text)
+    await state.set_state(Resident.home_number)
+    await message.answer("What's resident home number")
 
 
-async def get_house_number(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Get the house number from the resident."""
-    chat_id = update.message.chat_id
-    user_data[chat_id].house_number = update.message.text
+@form_router.message(Resident.home_number)
+async def process_home_number(message: Message, state: FSMContext) -> None:
+    await state.update_data(home_number=message.text)
+    await message.answer("Wait a minute")
 
-    await update.message.reply_text("Enter the resident name:")
-    await get_resident_name(update, context)
+    async with session as db_session:
+        repos = ResidentRepository(db_session)
+        resident = await repos.create_resident(await state.get_data())
+    await message.answer(f"Add resident with name: {resident.name}")
 
-
-async def get_resident_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Get the resident name from the user."""
-    chat_id = update.message.chat_id
-    user_data[chat_id].user_name = update.message.text
-
-    await update.message.reply_text("Enter the phone number:")
-    await get_phone_number(update, context)
+    await state.clear()
 
 
-async def get_phone_number(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Get the phone number from the resident and create resident"""
-    chat_id = update.message.chat_id
-    user_data[chat_id].phone_number = update.message.text
+async def main():
+    bot = Bot(token=settings.TOKEN, parse_mode=ParseMode.HTML)
+    dp = Dispatcher()
+    dp.include_router(form_router)
 
-    user_object = user_data[chat_id]
-    await update.message.reply_text(f"User added:\n{user_object}")
-
-    del user_data[chat_id]  # Clear temporary data after completion
-    return None
-
-
-def main() -> None:
-    """Start the bot."""
-    application = Application.builder().token(settings.TOKEN).build()
-
-    handlers = [
-        CommandHandler("start", start),
-        CommandHandler("add_user", add_resident),
-        MessageHandler(filters.TEXT & ~filters.COMMAND, get_house_number),
-        MessageHandler(filters.TEXT & ~filters.COMMAND, get_resident_name),
-        MessageHandler(filters.TEXT & ~filters.COMMAND, get_phone_number),
-    ]
-
-    for handler in handlers:
-        application.add_handler(handler)
-
-    application.run_polling(allowed_updates=Update.ALL_TYPES)
+    await dp.start_polling(bot)
 
 
 if __name__ == "__main__":
-    main()
+    logging.basicConfig(level=logging.INFO, stream=sys.stdout)
+    asyncio.run(main())
