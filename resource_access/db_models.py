@@ -13,12 +13,12 @@ class ResidentDB(Base):
 class ElectricityReadingDB(Base):
     __tablename__ = 'electricity_readings'
 
-    # resident_id = Column(
-    #     Integer,
-    #     ForeignKey("residents.id", ondelete="RESTRICT"),
-    #     nullable=False,
-    # )
+    resident_id = Column(
+        Integer,
+        ForeignKey("residents.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
     current_reading = Column(Integer, nullable=False)
     payment_status = Column(Boolean, default=False)
     amount = Column(Float, nullable=True)
-    # created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
