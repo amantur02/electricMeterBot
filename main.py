@@ -52,10 +52,10 @@ async def add_readings(message: Message, state: FSMContext) -> None:
 async def process_resident_id(message: Message, state: FSMContext) -> None:
     async with session as db_session:
         repos = ResidentRepository(db_session)
-        resident = await repos.get_resident_by_home_number(int(message.text))  # there may be an error due to the str
+        resident = await repos.get_resident_by_home_number(message.text)  # there may be an error due to the str
 
     if resident:
-        await state.update_data(resident_id=int(message.text))
+        await state.update_data(resident_id=resident.id)
         await state.set_state(ElectricityReading.current_reading)
         await message.answer("Pleas write electricity reading")
     else:
@@ -64,37 +64,31 @@ async def process_resident_id(message: Message, state: FSMContext) -> None:
         await state.clear()
 
 
-async def create_reading_service(current_reading: int, resident_id: int) -> str:
-    async with session as db_session:
+@form_router.message(ElectricityReading.current_reading)
+async def process_current_reading(message: Message, state: FSMContext) -> None:
+    current_reading = message.text
+    electricity_data = await state.get_data()
+
+    if current_reading.isdigit():
+        electricity_data['current_reading'] = int(current_reading)
+    else:
+        await message.answer("Pleas enter integer")
+        await state.set_state(ElectricityReading.current_reading)
+        return None  # stop this function
+
+    async with (session as db_session):
         repos = ElectricityReadingRepository(db_session)
-        reading_db = await repos.get_last_reading_by_resident_id(resident_id)
+        reading_db = await repos.get_last_reading_by_resident_id(electricity_data.get('resident_id'))
 
         if reading_db:
-            amount_kwh = current_reading - reading_db.current_reading
+            amount_kwh = electricity_data.get('current_reading') - reading_db.current_reading
             if amount_kwh >= settings.LIMIT:
-                amount = amount_kwh * settings.TARIFF
+                electricity_data['amount'] = amount_kwh * settings.TARIFF
             else:
                 remainder = amount_kwh - settings.LIMIT
-                amount = (settings.TARIFF * settings.LIMIT) + remainder * settings.INCREASED_TARIFF
+                electricity_data['amount'] = (settings.TARIFF * settings.LIMIT) + remainder * settings.INCREASED_TARIFF
 
-
-
-
-# @form_router.message(ElectricityReading.current_reading)
-# async def process_current_reading(message: Message, state: FSMContext) -> None:
-#     current_reading = message.text
-#     data = await state.get_data()
-#
-#     if current_reading.isdigit():
-#         # await state.update_data(current_reading=int(current_reading))
-#
-#
-#
-#             if reading_db:
-#
-#     else:
-#         await message.answer("It is not integer")
-
+        await repos.create_reading(electricity_data)
 
 
 async def main():
