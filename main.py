@@ -58,7 +58,18 @@ async def add_readings(message: Message, state: FSMContext) -> None:
 async def process_resident_id(message: Message, state: FSMContext) -> None:
     async with session as db_session:
         repos = ResidentRepository(db_session)
-        resident = await repos.get_resident_by_home_number(message.text)  # there may be an error due to the str
+
+        if message.text.isdigit():
+            resident = await repos.get_resident_by_home_number(message.text)  # there may be an error due to the str
+        else:
+            residents = await repos.get_residents_by_name(message.text)
+            for resident in residents:
+                await message.answer(f"Имя: {resident.name}\n"
+                                     f"Номер: {resident.home_number}")
+
+            await message.answer("Введите номер дома еще раз")
+            await state.set_state(ElectricityReading.resident_id)
+            return None
 
     if resident:
         await state.update_data(resident_id=resident.id)
@@ -101,7 +112,7 @@ async def process_current_reading(message: Message, state: FSMContext) -> None:
         electricity = await repos.create_reading(electricity)
 
     await message.answer(f"Итоговая сумма: {electricity.amount}\n"
-                         f"Изразходовано киловатт: {electricity.consumed_kwh}"
+                         f"Изразходовано киловатт: {electricity.consumed_kwh}\n"
                          f"Превышено киловатт: {electricity.increased_kwh}\n"
                          f"Превышенная сумма: {electricity.increased_amount}")
 

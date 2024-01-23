@@ -1,11 +1,13 @@
 import logging
+from typing import List
 
-from sqlalchemy import select, desc
+from pydantic import parse_obj_as
+from sqlalchemy import select, desc, func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from resource_access.db_models import ResidentDB, ElectricityReadingDB
-from schemas import Electricity
+from schemas import Electricity, Resident
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +39,16 @@ class ResidentRepository:
             )
         )
         return query.scalar()
+
+    async def get_residents_by_name(self, name: str) -> list[Resident]:
+        query = await self._db_session.execute(
+            select(ResidentDB).where(
+                func.lower(ResidentDB.name).like(func.lower(f"%{name}%"))
+            )
+        )
+
+        residents = query.scalars().all()
+        return parse_obj_as(List[Resident], residents)
 
 
 class ElectricityReadingRepository:
