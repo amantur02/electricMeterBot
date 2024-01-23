@@ -12,6 +12,7 @@ from core.config import settings
 from forms import Resident, ElectricityReading
 from repositories.resident_repos import ResidentRepository, ElectricityReadingRepository
 from resource_access.db_session import session
+from schemas import Electricity
 
 form_router = Router()
 
@@ -68,10 +69,10 @@ async def process_resident_id(message: Message, state: FSMContext) -> None:
 async def process_current_reading(message: Message, state: FSMContext) -> None:
     current_kwh = message.text
     electricity_data = await state.get_data()
+    electricity = Electricity(resident_id=electricity_data.get('resident_id'))
 
     if current_kwh.isdigit():
-        electricity_data['current_kwh'] = int(current_kwh)
-        current_kwh = int(current_kwh)
+        electricity.current_kwh = int(current_kwh)
     else:
         await message.answer("Pleas enter integer")
         await state.set_state(ElectricityReading.current_kwh)
@@ -79,24 +80,20 @@ async def process_current_reading(message: Message, state: FSMContext) -> None:
 
     async with (session as db_session):
         repos = ElectricityReadingRepository(db_session)
-        reading_db = await repos.get_last_reading_by_resident_id(electricity_data.get('resident_id'))
+        last_electricity = await repos.get_last_reading_by_resident_id(electricity.resident_id)
 
-        if reading_db:
-            consumed_kwh = electricity_data.get('current_kwh') - reading_db.current_kwh
-            electricity_data['consumed_kwh'] = consumed_kwh
+        if last_electricity:
+            electricity.consumed_kwh = electricity.current_kwh - last_electricity.current_kwh
 
-            if consumed_kwh <= settings.LIMIT:
-                await message.answer(consumed_kwh)
-                electricity_data['amount'] = consumed_kwh * settings.TARIFF
+            if electricity.consumed_kwh <= settings.LIMIT:
+                electricity.amount = electricity.consumed_kwh * settings.TARIFF
             else:
-                increased_kwh = consumed_kwh - settings.LIMIT
-                electricity_data['increased_amount'] = increased_kwh * settings.INCREASED_TARIFF
-                electricity_data['amount'] = (settings.TARIFF * settings.LIMIT) + electricity_data.get('increased_amount')
+                electricity.not_increased_amount = settings.LIMIT * settings.TARIFF
+                electricity.increased_kwh = electricity.consumed_kwh - settings.LIMIT
+                electricity.increased_amount = electricity.increased_kwh * settings.INCREASED_TARIFF
+                electricity.amount = electricity.not_increased_amount + electricity.increased_amount
 
-                electricity_data['increased_kwh'] = increased_kwh
-                electricity_data['not_increased_amount'] = settings.LIMIT * settings.TARIFF
-
-        await repos.create_reading(electricity_data)
+        await repos.create_reading(electricity)
 
 
 async def main():

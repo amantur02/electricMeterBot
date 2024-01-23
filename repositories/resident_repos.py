@@ -5,6 +5,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from resource_access.db_models import ResidentDB, ElectricityReadingDB
+from schemas import Electricity
 
 logger = logging.getLogger(__name__)
 
@@ -42,15 +43,9 @@ class ElectricityReadingRepository:
     def __init__(self, db_session: Session):
         self._db_session = db_session
 
-    async def create_reading(self, state_data: dict) -> ElectricityReadingDB:
+    async def create_reading(self, electricity: Electricity) -> ElectricityReadingDB:
         reading_db = ElectricityReadingDB(
-            resident_id=state_data.get('resident_id'),
-            current_kwh=state_data.get('current_kwh'),
-            consumed_kwh=state_data.get('consumed_kwh', None),
-            increased_kwh=state_data.get('increased_kwh', None),
-            amount=state_data.get('amount', None),
-            increased_amount=state_data.get('increased_amount', None),
-            not_increased_amount=state_data.get('not_increased_amount', None)
+            **electricity.model_dump(exclude_unset=True)
         )
         self._db_session.add(reading_db)
 
