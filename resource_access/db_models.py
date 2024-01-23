@@ -19,6 +19,7 @@ class ElectricityReadingDB(Base):
         nullable=False,
     )
     current_kwh = Column(Integer, nullable=False)
+    consumed_kwh = Column(Integer, nullable=True)
     increased_kwh = Column(Integer, nullable=True)
     payment_status = Column(Boolean, default=False)
     amount = Column(Float, nullable=True)

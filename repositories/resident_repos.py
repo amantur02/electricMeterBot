@@ -45,8 +45,12 @@ class ElectricityReadingRepository:
     async def create_reading(self, state_data: dict) -> ElectricityReadingDB:
         reading_db = ElectricityReadingDB(
             resident_id=state_data.get('resident_id'),
-            current_reading=state_data.get('current_reading'),
-            amount=state_data.get('amount', None)
+            current_kwh=state_data.get('current_kwh'),
+            consumed_kwh=state_data.get('consumed_kwh', None),
+            increased_kwh=state_data.get('increased_kwh', None),
+            amount=state_data.get('amount', None),
+            increased_amount=state_data.get('increased_amount', None),
+            not_increased_amount=state_data.get('not_increased_amount', None)
         )
         self._db_session.add(reading_db)
 

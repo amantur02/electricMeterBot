@@ -8,6 +8,6 @@ class Resident(StatesGroup):
 
 class ElectricityReading(StatesGroup):
     resident_id = State()
-    current_reading = State()
+    current_kwh = State()
     payment_status = State()
     amount = State()

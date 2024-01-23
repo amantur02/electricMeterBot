@@ -56,24 +56,25 @@ async def process_resident_id(message: Message, state: FSMContext) -> None:
 
     if resident:
         await state.update_data(resident_id=resident.id)
-        await state.set_state(ElectricityReading.current_reading)
-        await message.answer("Pleas write electricity reading")
+        await state.set_state(ElectricityReading.current_kwh)
+        await message.answer("Pleas write electricity kwh")
     else:
         await message.answer("Not found resident with this home number")
 
         await state.clear()
 
 
-@form_router.message(ElectricityReading.current_reading)
+@form_router.message(ElectricityReading.current_kwh)
 async def process_current_reading(message: Message, state: FSMContext) -> None:
-    current_reading = message.text
+    current_kwh = message.text
     electricity_data = await state.get_data()
 
-    if current_reading.isdigit():
-        electricity_data['current_reading'] = int(current_reading)
+    if current_kwh.isdigit():
+        electricity_data['current_kwh'] = int(current_kwh)
+        current_kwh = int(current_kwh)
     else:
         await message.answer("Pleas enter integer")
-        await state.set_state(ElectricityReading.current_reading)
+        await state.set_state(ElectricityReading.current_kwh)
         return None  # stop this function
 
     async with (session as db_session):
@@ -81,12 +82,19 @@ async def process_current_reading(message: Message, state: FSMContext) -> None:
         reading_db = await repos.get_last_reading_by_resident_id(electricity_data.get('resident_id'))
 
         if reading_db:
-            amount_kwh = electricity_data.get('current_reading') - reading_db.current_reading
-            if amount_kwh >= settings.LIMIT:
-                electricity_data['amount'] = amount_kwh * settings.TARIFF
+            consumed_kwh = electricity_data.get('current_kwh') - reading_db.current_kwh
+            electricity_data['consumed_kwh'] = consumed_kwh
+
+            if consumed_kwh <= settings.LIMIT:
+                await message.answer(consumed_kwh)
+                electricity_data['amount'] = consumed_kwh * settings.TARIFF
             else:
-                remainder = amount_kwh - settings.LIMIT
-                electricity_data['amount'] = (settings.TARIFF * settings.LIMIT) + remainder * settings.INCREASED_TARIFF
+                increased_kwh = consumed_kwh - settings.LIMIT
+                electricity_data['increased_amount'] = increased_kwh * settings.INCREASED_TARIFF
+                electricity_data['amount'] = (settings.TARIFF * settings.LIMIT) + electricity_data.get('increased_amount')
+
+                electricity_data['increased_kwh'] = increased_kwh
+                electricity_data['not_increased_amount'] = settings.LIMIT * settings.TARIFF
 
         await repos.create_reading(electricity_data)
 
