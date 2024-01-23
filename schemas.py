@@ -1,3 +1,5 @@
+from typing import Optional
+
 from pydantic import BaseModel
 
 
@@ -8,11 +10,15 @@ class Resident(BaseModel):
 
 
 class Electricity(BaseModel):
-    resident_id: int = None
-    current_kwh: int = None
-    consumed_kwh: int = None
-    increased_kwh: int = None
-    payment_status: bool = None
-    amount: float = None
-    increased_amount: float = None
-    not_increased_amount: float = None
+    resident_id: Optional[int] = None
+    current_kwh: Optional[int] = None
+    consumed_kwh: Optional[int] = None
+    increased_kwh: Optional[int] = None
+    payment_status: Optional[bool] = None
+    amount: Optional[float] = None
+    increased_amount: Optional[float] = None
+    not_increased_amount: Optional[float] = None
+
+    class Config:
+        from_attributes = True
+

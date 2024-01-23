@@ -43,16 +43,15 @@ class ElectricityReadingRepository:
     def __init__(self, db_session: Session):
         self._db_session = db_session
 
-    async def create_reading(self, electricity: Electricity) -> ElectricityReadingDB:
+    async def create_reading(self, electricity: Electricity) -> Electricity:
         reading_db = ElectricityReadingDB(
             **electricity.model_dump(exclude_unset=True)
         )
         self._db_session.add(reading_db)
-
         try:
             await self._db_session.commit()
             await self._db_session.refresh(reading_db)
-            return reading_db
+            return Electricity.model_validate(reading_db)
         except IntegrityError as error:
             logger.error(
                 f"Error while creating Electricity Reading. Details: {error.orig.args}"

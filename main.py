@@ -19,8 +19,13 @@ form_router = Router()
 
 @form_router.message(CommandStart())
 async def command_start(message: Message, state: FSMContext) -> None:
+    await message.answer("Hi there! I have two command: \n/add_resident and /add_reading")
+
+
+@form_router.message(Command('add_resident'))
+async def add_resident(message: Message, state: FSMContext) -> None:
     await state.set_state(Resident.name)
-    await message.answer("Hi there! What's resident name?")
+    await message.answer("Ok, what's resident name")
 
 
 @form_router.message(Resident.name)
@@ -43,7 +48,7 @@ async def process_home_number(message: Message, state: FSMContext) -> None:
     await state.clear()
 
 
-@form_router.message(Command("add_readings"))
+@form_router.message(Command("add_reading"))
 async def add_readings(message: Message, state: FSMContext) -> None:
     await state.set_state(ElectricityReading.resident_id)
     await message.answer("What's resident home number?")
@@ -93,7 +98,12 @@ async def process_current_reading(message: Message, state: FSMContext) -> None:
                 electricity.increased_amount = electricity.increased_kwh * settings.INCREASED_TARIFF
                 electricity.amount = electricity.not_increased_amount + electricity.increased_amount
 
-        await repos.create_reading(electricity)
+        electricity = await repos.create_reading(electricity)
+
+    await message.answer(f"Итоговая сумма: {electricity.amount}\n"
+                         f"Изразходовано киловатт: {electricity.consumed_kwh}"
+                         f"Превышено киловатт: {electricity.increased_kwh}\n"
+                         f"Превышенная сумма: {electricity.increased_amount}")
 
 
 async def main():
